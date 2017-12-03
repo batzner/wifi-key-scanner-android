@@ -57,6 +57,7 @@ import android.widget.Spinner;
 import android.widget.TextView;
 import android.widget.Toast;
 
+import com.afollestad.materialdialogs.DialogAction;
 import com.afollestad.materialdialogs.MaterialDialog;
 import com.google.android.gms.common.ConnectionResult;
 import com.google.android.gms.common.GoogleApiAvailability;
@@ -98,8 +99,11 @@ public final class MainActivity extends AppCompatActivity {
     private ScannerView mScannerView;
     private View mMatchView;
     private View mMatchShadowView;
+    private TextView mMatchStatusTextView;
     private Spinner mMatchSSIDSpinner;
     private Spinner mMatchPasswordSpinner;
+    private TextView mMatchSSIDEmptyView;
+    private TextView mMatchPasswordEmptyView;
     private View mRescanButton;
     private View mEditButton;
     private View mCopyButton;
@@ -133,8 +137,11 @@ public final class MainActivity extends AppCompatActivity {
         mScannerView = findViewById(R.id.activity_main_scanner);
         mMatchView = findViewById(R.id.activity_main_match);
         mMatchShadowView = findViewById(R.id.activity_main_match_shadow);
+        mMatchStatusTextView = findViewById(R.id.activity_main_match_status);
         mMatchSSIDSpinner = findViewById(R.id.activity_main_match_ssid_spinner);
         mMatchPasswordSpinner = findViewById(R.id.activity_main_match_password_spinner);
+        mMatchSSIDEmptyView = findViewById(R.id.activity_main_match_ssid_empty);
+        mMatchPasswordEmptyView = findViewById(R.id.activity_main_match_password_empty);
         mRescanButton = findViewById(R.id.activity_main_rescan);
         mEditButton = findViewById(R.id.activity_main_edit);
         mCopyButton = findViewById(R.id.activity_main_copy);
@@ -275,7 +282,31 @@ public final class MainActivity extends AppCompatActivity {
             }
         }
 
-        startRecognition();
+        // Handle "no available SSIDs"
+        if (mSSIDs.isEmpty()) {
+            mStatusTextView.setText("No Networks found");
+            mStatusProgressBar.setVisibility(View.GONE);
+            new MaterialDialog.Builder(this)
+                    .title("No Wifi Networks Found")
+                    .content("The phone's Wifi is enabled, but there are no available networks to connect to.")
+                    .negativeText("Search again")
+                    .positiveText("Scan anyways")
+                    .onNegative(new MaterialDialog.SingleButtonCallback() {
+                        @Override
+                        public void onClick(@NonNull MaterialDialog dialog, @NonNull DialogAction which) {
+                            startSSIDScan();
+                        }
+                    })
+                    .onPositive(new MaterialDialog.SingleButtonCallback() {
+                        @Override
+                        public void onClick(@NonNull MaterialDialog dialog, @NonNull DialogAction which) {
+                            startRecognition();
+                        }
+                    })
+                    .show();
+        } else {
+            startRecognition();
+        }
     }
 
     private void startRecognition() {
@@ -342,40 +373,50 @@ public final class MainActivity extends AppCompatActivity {
     }
 
     private void displayResults(@Nullable final String SSID, @Nullable final String password) {
-        Log.e(TAG, "Result network: " + SSID + " // " + password);
-        Log.e(TAG, "SSID match counts " + mSSIDMatchCounts);
-
         // Stop the recognition timeout
         mRecognitionTimeoutAnimation.cancel();
 
         stopRecognition();
+        if (mAllPasswords.isEmpty()) {
+            // There is nothing to display or select. Show a dialog
+            new MaterialDialog.Builder(this)
+                    .title("404 No Password found")
+                    .content("There was no password detected. Try scanning again.")
+                    .neutralText("Try again")
+                    .onNeutral(new MaterialDialog.SingleButtonCallback() {
+                        @Override
+                        public void onClick(@NonNull MaterialDialog dialog, @NonNull DialogAction which) {
+                            startSSIDScan();
+                        }
+                    })
+                    .show();
+            return;
+        }
+
         mMatchView.setVisibility(View.VISIBLE);
         mMatchShadowView.setVisibility(View.VISIBLE);
 
-        // Populate the SSID spinner
-        List<String> SSIDChoices = new ArrayList<>(mSSIDs);
-        Collections.sort(SSIDChoices, new SSIDComparator());
-        populateSpinner(mMatchSSIDSpinner, SSIDChoices, SSID);
-
-        // Populate the password spinner
-        List<String> passwordChoices = new ArrayList<>(mAllPasswords);
-        Collections.sort(passwordChoices, new PasswordComparator());
-        if (password != null) {
-            // Put the found password to the top
-            passwordChoices.remove(password);
-            passwordChoices.add(0, password);
+        if (SSID != null && password != null) {
+            mMatchStatusTextView.setText("Network detected");
+        } else {
+            mMatchStatusTextView.setText("No match found. Please select the network and the password below.");
         }
-        // Only display the top k passwords
-        int maxPasswords = Math.min(5, passwordChoices.size());
-        passwordChoices = passwordChoices.subList(0, maxPasswords);
-        populateSpinner(mMatchPasswordSpinner, passwordChoices, password);
 
-        mConnectButton.setOnClickListener(new View.OnClickListener() {
-            @Override
-            public void onClick(View v) {
-                connectToNetwork(SSID, password);
-            }
-        });
+        populateSSIDSpinner(SSID);
+        populatePasswordSpinner(password);
+
+        if (!mSSIDs.isEmpty() && !mAllPasswords.isEmpty()) {
+            // Make sure, to only connect when there both pickers have values
+            mConnectButton.setVisibility(View.VISIBLE);
+            mConnectButton.setOnClickListener(new View.OnClickListener() {
+                @Override
+                public void onClick(View v) {
+                    connectToNetwork(SSID, password);
+                }
+            });
+        } else {
+            mConnectButton.setVisibility(View.GONE);
+        }
 
         mEditButton.setOnClickListener(new View.OnClickListener() {
             @Override
@@ -390,6 +431,42 @@ public final class MainActivity extends AppCompatActivity {
                 copyToClipboard();
             }
         });
+    }
+
+    private void populateSSIDSpinner(@Nullable String matchedSSID) {
+        if (!mSSIDs.isEmpty()) {
+            List<String> SSIDChoices = new ArrayList<>(mSSIDs);
+            Collections.sort(SSIDChoices, new SSIDComparator());
+            populateSpinner(mMatchSSIDSpinner, SSIDChoices, matchedSSID);
+            mMatchSSIDSpinner.setVisibility(View.VISIBLE);
+            mMatchSSIDEmptyView.setVisibility(View.GONE);
+        } else {
+            mMatchSSIDSpinner.setVisibility(View.GONE);
+            mMatchSSIDEmptyView.setVisibility(View.VISIBLE);
+        }
+    }
+
+    private void populatePasswordSpinner(@Nullable String matchedPassword) {
+        if (!mAllPasswords.isEmpty()) {
+            List<String> passwordChoices = new ArrayList<>(mAllPasswords);
+            Collections.sort(passwordChoices, new PasswordComparator());
+            if (matchedPassword != null) {
+                // Put the found password to the top
+                passwordChoices.remove(matchedPassword);
+                passwordChoices.add(0, matchedPassword);
+            }
+            // Only display the top k passwords
+            int maxPasswords = Math.min(5, passwordChoices.size());
+            passwordChoices = passwordChoices.subList(0, maxPasswords);
+            populateSpinner(mMatchPasswordSpinner, passwordChoices, matchedPassword);
+
+            mMatchPasswordSpinner.setVisibility(View.VISIBLE);
+            mMatchPasswordEmptyView.setVisibility(View.GONE);
+        } else {
+            mMatchPasswordSpinner.setVisibility(View.GONE);
+            mMatchPasswordEmptyView.setVisibility(View.VISIBLE);
+        }
+
     }
 
     private void populateSpinner(Spinner spinner, List<String> items, @Nullable String choice) {

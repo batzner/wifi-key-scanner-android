@@ -105,10 +105,12 @@
             android:paddingTop="10dp">
 
             <TextView
+                android:id="@+id/activity_main_match_status"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:text="Recognized Network"
-                android:textSize="14sp" />
+                android:text="Network detected"
+                android:textSize="14sp"
+                android:textAlignment="center"/>
 
             <LinearLayout
                 android:layout_width="match_parent"
@@ -131,6 +133,13 @@
                     android:layout_marginTop="6dp"/>
 
                 <TextView
+                    android:id="@+id/activity_main_match_ssid_empty"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="6dp"
+                    android:text="No networks detected"/>
+
+                <TextView
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
                     android:labelFor="@+id/activity_main_match_password"
@@ -144,6 +153,13 @@
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
                     android:layout_marginTop="6dp" />
+
+                <TextView
+                    android:id="@+id/activity_main_match_password_empty"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="6dp"
+                    android:text="No passwords detected"/>
             </LinearLayout>
 
             <LinearLayout
