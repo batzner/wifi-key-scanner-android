@@ -110,7 +110,6 @@ public final class MainActivity extends AppCompatActivity {
     private View mEditButton;
     private View mCopyButton;
     private View mConnectButton;
-    private ProgressBar mConnectProgressBar;
 
     // Helper object for detecting pinches.
     private ScaleGestureDetector mScaleGestureDetector;
@@ -150,7 +149,6 @@ public final class MainActivity extends AppCompatActivity {
         mEditButton = findViewById(R.id.activity_main_edit);
         mCopyButton = findViewById(R.id.activity_main_copy);
         mConnectButton = findViewById(R.id.activity_main_connect);
-        mConnectProgressBar = findViewById(R.id.activity_main_connect_progress);
 
         mRescanButton.setOnClickListener(new View.OnClickListener() {
             @Override
@@ -413,7 +411,6 @@ public final class MainActivity extends AppCompatActivity {
 
         mMatchView.setVisibility(View.VISIBLE);
         mMatchShadowView.setVisibility(View.VISIBLE);
-        mConnectProgressBar.setVisibility(View.GONE);
 
         if (SSID != null && password != null) {
             mMatchStatusTextView.setText("Network detected");
@@ -546,28 +543,10 @@ public final class MainActivity extends AppCompatActivity {
         wifiConfig.SSID = String.format("\"%s\"", SSID);
         wifiConfig.preSharedKey = String.format("\"%s\"", password);
 
-        // Add a callback for when the connection changed
-        registerReceiver(new BroadcastReceiver() {
-            @Override
-            public void onReceive(Context context, Intent intent) {
-                // Call this only once
-                unregisterReceiver(this);
-                mConnectProgressBar.setVisibility(View.GONE);
-
-                if (isConnectedViaWifi()) {
-                    // A toast to this joyfull event!
-                    Toast.makeText(context, "Connected to Wifi", Toast.LENGTH_SHORT).show();
-                }
-
-                Log.e(TAG, "CONNECTION WORKED? " + isConnectedViaWifi());
-            }
-        }, new IntentFilter(android.net.ConnectivityManager.CONNECTIVITY_ACTION));
-
         // Connect to the network
         int netId = mWifiManager.addNetwork(wifiConfig);
         mWifiManager.enableNetwork(netId, true);
         mWifiManager.reconnect();
-        mConnectProgressBar.setVisibility(View.VISIBLE);
     }
 
     private boolean isConnectedViaWifi() {

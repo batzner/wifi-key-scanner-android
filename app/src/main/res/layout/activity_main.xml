@@ -202,13 +202,6 @@
                     android:drawableTop="@drawable/ic_connect"
                     android:text="Connect"
                     android:textColor="@color/colorAccent"/>
-
-                <ProgressBar
-                    android:id="@+id/activity_main_connect_progress"
-                    android:layout_width="0dp"
-                    android:layout_weight="1"
-                    android:layout_height="36dp"
-                    android:visibility="gone" />
             </LinearLayout>
         </LinearLayout>
     </android.support.v7.widget.CardView>
