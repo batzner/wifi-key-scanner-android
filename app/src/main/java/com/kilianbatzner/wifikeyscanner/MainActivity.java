@@ -16,9 +16,11 @@
 package com.kilianbatzner.wifikeyscanner;
 
 import android.Manifest;
+import android.animation.Animator;
+import android.animation.AnimatorListenerAdapter;
+import android.animation.ValueAnimator;
 import android.annotation.SuppressLint;
 import android.annotation.TargetApi;
-import android.app.Activity;
 import android.app.AlertDialog;
 import android.app.Dialog;
 import android.content.BroadcastReceiver;
@@ -37,8 +39,7 @@ import android.net.wifi.WifiManager;
 import android.os.Build;
 import android.os.Bundle;
 import android.support.annotation.NonNull;
-import android.support.annotation.RequiresApi;
-import android.support.design.widget.Snackbar;
+import android.support.annotation.Nullable;
 import android.support.v4.app.ActivityCompat;
 import android.support.v7.app.AppCompatActivity;
 import android.util.Log;
@@ -46,11 +47,14 @@ import android.view.LayoutInflater;
 import android.view.MotionEvent;
 import android.view.ScaleGestureDetector;
 import android.view.View;
-import android.widget.ImageButton;
+import android.view.animation.LinearInterpolator;
+import android.widget.ArrayAdapter;
 import android.widget.ProgressBar;
+import android.widget.Spinner;
 import android.widget.TextView;
 import android.widget.Toast;
 
+import com.afollestad.materialdialogs.MaterialDialog;
 import com.google.android.gms.common.ConnectionResult;
 import com.google.android.gms.common.GoogleApiAvailability;
 import com.kilianbatzner.wifikeyscanner.ui.camera.CameraSource;
@@ -63,6 +67,7 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.Comparator;
+import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
@@ -86,21 +91,28 @@ public final class MainActivity extends AppCompatActivity {
     private GraphicOverlay<OcrGraphic> mGraphicOverlay;
     private TextView mStatusTextView;
     private ProgressBar mStatusProgressBar;
+    private ProgressBar mTimeClockBar;
     private ScannerView mScannerView;
     private View mMatchView;
     private View mMatchShadowView;
-    private TextView mMatchSSIDTextView;
-    private TextView mMatchPasswordTextView;
-    private ImageButton mRescanButton;
-    private ImageButton mEditButton;
-    private ImageButton mConnectButton;
+    private Spinner mMatchSSIDSpinner;
+    private Spinner mMatchPasswordSpinner;
+    private View mRescanButton;
+    private View mEditButton;
+    private View mCopyButton;
+    private View mConnectButton;
 
     // Helper object for detecting pinches.
     private ScaleGestureDetector mScaleGestureDetector;
 
+    // ValueAnimation for the recogntition timeout
+    ValueAnimator mRecognitionTimeoutAnimation;
+
     private WifiManager mWifiManager;
     private OcrDetectorProcessor mProcessor;
     private Set<String> mSSIDs = new HashSet<>();
+    private Set<String> mAllPasswords = new HashSet<>();
+    private HashMap<String, Integer> mSSIDMatchCounts = new HashMap<>();
 
     /**
      * Initializes the UI and creates the detector pipeline.
@@ -114,13 +126,15 @@ public final class MainActivity extends AppCompatActivity {
         mGraphicOverlay = findViewById(R.id.activity_main_overlay);
         mStatusTextView = findViewById(R.id.activity_main_status_text);
         mStatusProgressBar = findViewById(R.id.activity_main_status_progress);
+        mTimeClockBar = findViewById(R.id.activity_main_time_clock);
         mScannerView = findViewById(R.id.activity_main_scanner);
         mMatchView = findViewById(R.id.activity_main_match);
         mMatchShadowView = findViewById(R.id.activity_main_match_shadow);
-        mMatchSSIDTextView = findViewById(R.id.activity_main_match_ssid);
-        mMatchPasswordTextView = findViewById(R.id.activity_main_match_password);
+        mMatchSSIDSpinner = findViewById(R.id.activity_main_match_ssid_spinner);
+        mMatchPasswordSpinner = findViewById(R.id.activity_main_match_password_spinner);
         mRescanButton = findViewById(R.id.activity_main_rescan);
         mEditButton = findViewById(R.id.activity_main_edit);
+        mCopyButton = findViewById(R.id.activity_main_copy);
         mConnectButton = findViewById(R.id.activity_main_connect);
 
         mRescanButton.setOnClickListener(new View.OnClickListener() {
@@ -175,13 +189,6 @@ public final class MainActivity extends AppCompatActivity {
     }
 
     private void onPermissionsGranted() {
-        createWifiManager();
-
-        // Set good defaults for capturing text.
-        createCameraSource(true, false);
-    }
-
-    private void createWifiManager() {
         // From https://stackoverflow.com/a/7527380/2628369
         mWifiManager = (WifiManager) getApplicationContext().getSystemService(Context.WIFI_SERVICE);
         if (mWifiManager == null) {
@@ -189,42 +196,58 @@ public final class MainActivity extends AppCompatActivity {
             return;
         }
 
-        // Register handlers for WIFI changes
-        registerReceiver(new BroadcastReceiver() {
-            @Override
-            public void onReceive(Context c, Intent intent) {
-                onSSIDScanComplete(mWifiManager.getScanResults());
-            }
-        }, new IntentFilter(WifiManager.SCAN_RESULTS_AVAILABLE_ACTION));
-
-        // Register the connection change receiver
-        registerReceiver(new BroadcastReceiver() {
-            @Override
-            public void onReceive(Context c, Intent intent) {
-                SupplicantState supplicantState = intent.getParcelableExtra(WifiManager.EXTRA_NEW_STATE);
-                if (supplicantState == (SupplicantState.COMPLETED)) {
-                    // Wifi is enabled
-                    mWifiManager.startScan();
-                }
-            }
-        }, new IntentFilter(WifiManager.SUPPLICANT_CONNECTION_CHANGE_ACTION));
-
         startSSIDScan();
+
+        // Set good defaults for capturing text.
+        createCameraSource(true, false);
     }
 
     private void startSSIDScan() {
         // TODO: Call that from a refresh action bar button
 
+        // TODO: If we already have some SSIDs, do the scan in the background
+
         // UI Updates
         mMatchView.setVisibility(View.GONE);
         mMatchShadowView.setVisibility(View.GONE);
+        mRescanButton.setVisibility(View.GONE);
+        mTimeClockBar.setVisibility(View.GONE);
+        mScannerView.setAnimated(false);
+
+        mStatusTextView.setVisibility(View.VISIBLE);
         mStatusTextView.setText("Searching for Wifi networks");
         mStatusProgressBar.setVisibility(View.VISIBLE);
-        setRecognitionActive(false);
 
         if (!mWifiManager.isWifiEnabled()) {
+            // Register the connection change receiver and activate wifi
+            registerReceiver(new BroadcastReceiver() {
+                @Override
+                public void onReceive(Context c, Intent intent) {
+                    // Call this only once
+                    unregisterReceiver(this);
+
+                    SupplicantState supplicantState = intent.getParcelableExtra(WifiManager.EXTRA_NEW_STATE);
+                    if (supplicantState == (SupplicantState.COMPLETED)) {
+                        // Wifi is enabled
+                        mWifiManager.startScan();
+                    }
+                }
+            }, new IntentFilter(WifiManager.SUPPLICANT_CONNECTION_CHANGE_ACTION));
+
             mWifiManager.setWifiEnabled(true);
         }
+
+        // Register handler for the scan completion and start the scan
+        registerReceiver(new BroadcastReceiver() {
+            @Override
+            public void onReceive(Context c, Intent intent) {
+                // Call this only once
+                unregisterReceiver(this);
+
+                onSSIDScanComplete(mWifiManager.getScanResults());
+            }
+        }, new IntentFilter(WifiManager.SCAN_RESULTS_AVAILABLE_ACTION));
+
         mWifiManager.startScan();
     }
 
@@ -240,40 +263,105 @@ public final class MainActivity extends AppCompatActivity {
     }
 
     private void onSSIDScanComplete(List<ScanResult> scanResults) {
-        // UI ready for scanning
-        mStatusTextView.setText("Scan the Wifi name and password");
-        mStatusProgressBar.setVisibility(View.GONE);
-
         // Update the SSIDs
         mSSIDs.clear();
         for (ScanResult result : scanResults) {
-            if (result.SSID.length() > 0) {
+            int security = WifiUtils.getSecurity(result);
+            if (result.SSID.length() > 0 && security != WifiUtils.SECURITY_NONE) {
                 mSSIDs.add(result.SSID);
             }
         }
 
-        // Activate the recognition
-        setRecognitionActive(true);
+        startRecognition();
     }
 
-    private void setRecognitionActive(boolean active) {
-        mProcessor.setActive(active);
-        mScannerView.setAnimated(active);
+    private void startRecognition() {
+        // UI ready for scanning
+        mStatusTextView.setVisibility(View.VISIBLE);
+        mStatusTextView.setText("Scan the Wifi name and password");
+        mStatusProgressBar.setVisibility(View.GONE);
+        mRescanButton.setVisibility(View.GONE);
 
-        if (active) {
-            mMatchView.setVisibility(View.GONE);
-            mMatchShadowView.setVisibility(View.GONE);
-        }
+        mScannerView.setAnimated(true);
+        mMatchView.setVisibility(View.GONE);
+        mMatchShadowView.setVisibility(View.GONE);
+
+        mTimeClockBar.setVisibility(View.VISIBLE);
+        mTimeClockBar.setProgress(0);
+
+        // Start a timeout for the recognition
+        mRecognitionTimeoutAnimation = ValueAnimator.ofFloat(0, 1);
+        mRecognitionTimeoutAnimation.setInterpolator(new LinearInterpolator());
+        mRecognitionTimeoutAnimation.setDuration(10000);
+        mRecognitionTimeoutAnimation.addUpdateListener(new ValueAnimator.AnimatorUpdateListener() {
+            @Override
+            public void onAnimationUpdate(ValueAnimator valueAnimator) {
+                float progress = (float) valueAnimator.getAnimatedValue();
+                int barProgress = (int) (100 * progress);
+                mTimeClockBar.setProgress(barProgress);
+            }
+        });
+
+        // Add an onTimeout listener
+        mRecognitionTimeoutAnimation.addListener(new AnimatorListenerAdapter() {
+            @Override
+            public void onAnimationEnd(Animator animation) {
+                onRecognitionTimeout();
+            }
+
+            @Override
+            public void onAnimationCancel(Animator animation) {
+                // Make the animation cancelable without calling the endListener
+                animation.removeAllListeners();
+            }
+        });
+
+        mRecognitionTimeoutAnimation.start();
+
+        mAllPasswords.clear();
+        mSSIDMatchCounts.clear();
+        mProcessor.setActive(true);
     }
 
-    private void onNetworkFound(final String SSID, final String password) {
-        Log.e(TAG, "Found network: "+SSID+" // "+password);
+    private void stopRecognition() {
+        mProcessor.setActive(false);
+        mScannerView.setAnimated(false);
 
-        setRecognitionActive(false);
+        // Show the rescan button
+        mRescanButton.setVisibility(View.VISIBLE);
+        mStatusTextView.setVisibility(View.GONE);
+        mStatusProgressBar.setVisibility(View.GONE);
+        mTimeClockBar.setVisibility(View.GONE);
+    }
+
+    private void displayResults(@Nullable final String SSID, @Nullable final String password) {
+        Log.e(TAG, "Result network: " + SSID + " // " + password);
+        Log.e(TAG, "SSID match counts " + mSSIDMatchCounts);
+
+        // Stop the recognition timeout
+        mRecognitionTimeoutAnimation.cancel();
+
+        stopRecognition();
         mMatchView.setVisibility(View.VISIBLE);
         mMatchShadowView.setVisibility(View.VISIBLE);
-        mMatchSSIDTextView.setText(SSID);
-        mMatchPasswordTextView.setText(password);
+
+        // Populate the SSID spinner
+        List<String> SSIDChoices = new ArrayList<>(mSSIDs);
+        Collections.sort(SSIDChoices, new SSIDComparator());
+        populateSpinner(mMatchSSIDSpinner, SSIDChoices, SSID);
+
+        // Populate the password spinner
+        List<String> passwordChoices = new ArrayList<>(mAllPasswords);
+        Collections.sort(passwordChoices, new PasswordComparator());
+        if (password != null) {
+            // Put the found password to the top
+            passwordChoices.remove(password);
+            passwordChoices.add(0, password);
+        }
+        // Only display the top k passwords
+        int maxPasswords = Math.min(5, passwordChoices.size());
+        passwordChoices = passwordChoices.subList(0, maxPasswords);
+        populateSpinner(mMatchPasswordSpinner, passwordChoices, password);
 
         mConnectButton.setOnClickListener(new View.OnClickListener() {
             @Override
@@ -288,6 +376,27 @@ public final class MainActivity extends AppCompatActivity {
                 editMatch(SSID, password);
             }
         });
+    }
+
+    private void populateSpinner(Spinner spinner, List<String> items, @Nullable String choice) {
+        ArrayAdapter<String> adapter = new ArrayAdapter<>(this, R.layout.match_spinner_item,
+                items);
+        // Specify the layout to use when the list of choices appears
+        adapter.setDropDownViewResource(R.layout.match_spinner_dropdown_item);
+        // Apply the adapter to the spinner
+        spinner.setAdapter(adapter);
+
+        if (choice != null) {
+            // Select the choice
+            int choicePosition = adapter.getPosition(choice);
+            if (choicePosition >= 0) {
+                spinner.setSelection(choicePosition);
+            }
+        }
+    }
+
+    private void onRecognitionTimeout() {
+        displayResults(null, null);
     }
 
     private void editMatch(final String SSID, final String password) {
@@ -427,7 +536,7 @@ public final class MainActivity extends AppCompatActivity {
                 }
             }
 
-            Log.e(TAG, "Asked for permissions: "+ Arrays.toString(permissions));
+            Log.e(TAG, "Asked for permissions: " + Arrays.toString(permissions));
             Log.e(TAG, "Location Permission: " + locationGranted + " Camera Permission: " + cameraGranted);
 
             // Check that both are granted
@@ -471,40 +580,21 @@ public final class MainActivity extends AppCompatActivity {
     private class ProcessorListener implements OcrDetectorProcessor.Listener {
 
         public void onDetectionsProcessed(Set<String> passwordSet, Set<String> matchedSSIDSet) {
-
-            // Sort the passwords by contains-digits first and length second
+            // Sort the passwords and ssids by relevance
             List<String> passwords = new ArrayList<>(passwordSet);
+            Collections.sort(passwords, new PasswordComparator());
 
-            // Secondary order: length, descending
-            Collections.sort(passwords, new Comparator<String>() {
-
-                @Override
-                public int compare(String str1, String str2) {
-                    return -Integer.valueOf(str1.length()).compareTo(str2.length());
-                }
-            });
-
-            // Primary order: has digits, descending
-            Collections.sort(passwords, new Comparator<String>() {
-
-                @Override
-                public int compare(String str1, String str2) {
-                    String digitRegex = ".*\\d+.*";
-                    boolean hasDigits1 = str1.matches(digitRegex);
-                    boolean hasDigits2 = str2.matches(digitRegex);
-                    return -Boolean.valueOf(hasDigits1).compareTo(hasDigits2);
-                }
-            });
-
-            // Sort the matched SSIDs by length, descending
             List<String> matchedSSIDs = new ArrayList<>(matchedSSIDSet);
-            Collections.sort(matchedSSIDs, new Comparator<String>() {
+            Collections.sort(matchedSSIDs, new SSIDComparator());
 
-                @Override
-                public int compare(String str1, String str2) {
-                    return -Integer.valueOf(str1.length()).compareTo(str2.length());
+            // Add the passwords and ssids to all passwords and all ssids
+            mAllPasswords.addAll(passwords);
+            for (String matchedSSID : matchedSSIDs) {
+                if (!mSSIDMatchCounts.containsKey(matchedSSID)) {
+                    mSSIDMatchCounts.put(matchedSSID, 0);
                 }
-            });
+                mSSIDMatchCounts.put(matchedSSID, mSSIDMatchCounts.get(matchedSSID) + 1);
+            }
 
             // Try the best match
             if (!matchedSSIDs.isEmpty() && !passwords.isEmpty()) {
@@ -514,7 +604,7 @@ public final class MainActivity extends AppCompatActivity {
                 // Display the match
                 MainActivity.this.runOnUiThread(new Runnable() {
                     public void run() {
-                        onNetworkFound(SSID, password);
+                        displayResults(SSID, password);
                     }
                 });
             }
@@ -574,6 +664,41 @@ public final class MainActivity extends AppCompatActivity {
             if (mCameraSource != null) {
                 mCameraSource.doZoom(detector.getScaleFactor());
             }
+        }
+    }
+
+    private class PasswordComparator implements Comparator<String> {
+        @Override
+        public int compare(String str1, String str2) {
+            // Primary order: has digits, descending
+            String digitRegex = ".*\\d+.*";
+            boolean hasDigits1 = str1.matches(digitRegex);
+            boolean hasDigits2 = str2.matches(digitRegex);
+            int result = -Boolean.valueOf(hasDigits1).compareTo(hasDigits2);
+
+            if (result == 0) {
+                // Secondary order: length, descending
+                result = -Integer.valueOf(str1.length()).compareTo(str2.length());
+            }
+
+            return result;
+        }
+    }
+
+    private class SSIDComparator implements Comparator<String> {
+        @Override
+        public int compare(String str1, String str2) {
+            // Primary order: match counts, descending
+            int count1 = mSSIDMatchCounts.containsKey(str1) ? mSSIDMatchCounts.get(str1) : 0;
+            int count2 = mSSIDMatchCounts.containsKey(str2) ? mSSIDMatchCounts.get(str2) : 0;
+
+
+            int result = -Integer.valueOf(count1).compareTo(count2);
+            if (result == 0) {
+                // Secondary order: length, descending
+                result = -Integer.valueOf(str1.length()).compareTo(str2.length());
+            }
+            return result;
         }
     }
 }
