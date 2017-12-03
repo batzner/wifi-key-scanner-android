@@ -109,7 +109,7 @@
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
                 android:text="Network detected"
-                android:textSize="14sp"
+                android:textSize="16sp"
                 android:textAlignment="center"/>
 
             <LinearLayout
@@ -137,6 +137,7 @@
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
                     android:layout_marginTop="6dp"
+                    android:textSize="16sp"
                     android:text="No networks detected"/>
 
                 <TextView
@@ -159,18 +160,22 @@
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
                     android:layout_marginTop="6dp"
+                    android:textSize="16sp"
                     android:text="No passwords detected"/>
             </LinearLayout>
 
             <LinearLayout
-                android:layout_width="wrap_content"
+                android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 android:layout_marginTop="18dp"
+                android:paddingStart="24dp"
+                android:paddingEnd="24dp"
                 android:orientation="horizontal">
 
                 <Button
                     android:id="@+id/activity_main_edit"
-                    android:layout_width="wrap_content"
+                    android:layout_width="0dp"
+                    android:layout_weight="1"
                     android:layout_height="wrap_content"
                     android:layout_marginStart="12dp"
                     android:background="@null"
@@ -180,7 +185,8 @@
 
                 <Button
                     android:id="@+id/activity_main_copy"
-                    android:layout_width="wrap_content"
+                    android:layout_width="0dp"
+                    android:layout_weight="1"
                     android:layout_height="wrap_content"
                     android:background="@null"
                     android:drawableTop="@drawable/ic_copy"
@@ -189,12 +195,20 @@
 
                 <Button
                     android:id="@+id/activity_main_connect"
-                    android:layout_width="wrap_content"
+                    android:layout_width="0dp"
+                    android:layout_weight="1"
                     android:layout_height="wrap_content"
                     android:background="@null"
                     android:drawableTop="@drawable/ic_connect"
                     android:text="Connect"
-                    android:textColor="@color/colorAccent" />
+                    android:textColor="@color/colorAccent"/>
+
+                <ProgressBar
+                    android:id="@+id/activity_main_connect_progress"
+                    android:layout_width="0dp"
+                    android:layout_weight="1"
+                    android:layout_height="36dp"
+                    android:visibility="gone" />
             </LinearLayout>
         </LinearLayout>
     </android.support.v7.widget.CardView>

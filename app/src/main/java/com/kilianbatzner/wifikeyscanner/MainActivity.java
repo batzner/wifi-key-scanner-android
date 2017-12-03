@@ -110,6 +110,7 @@ public final class MainActivity extends AppCompatActivity {
     private View mEditButton;
     private View mCopyButton;
     private View mConnectButton;
+    private ProgressBar mConnectProgressBar;
 
     // Helper object for detecting pinches.
     private ScaleGestureDetector mScaleGestureDetector;
@@ -149,6 +150,7 @@ public final class MainActivity extends AppCompatActivity {
         mEditButton = findViewById(R.id.activity_main_edit);
         mCopyButton = findViewById(R.id.activity_main_copy);
         mConnectButton = findViewById(R.id.activity_main_connect);
+        mConnectProgressBar = findViewById(R.id.activity_main_connect_progress);
 
         mRescanButton.setOnClickListener(new View.OnClickListener() {
             @Override
@@ -282,17 +284,6 @@ public final class MainActivity extends AppCompatActivity {
         scanSSIDsInBackground();
     }
 
-    private boolean isConnectedViaWifi() {
-        ConnectivityManager connectivityManager = (ConnectivityManager) getSystemService(Context.CONNECTIVITY_SERVICE);
-
-        if (connectivityManager != null) {
-            NetworkInfo mWifi = connectivityManager.getNetworkInfo(ConnectivityManager.TYPE_WIFI);
-            return mWifi.isConnected();
-        } else {
-            return false;
-        }
-    }
-
     private void onSSIDScanComplete() {
         List<ScanResult> scanResults = mWifiManager.getScanResults();
 
@@ -304,6 +295,10 @@ public final class MainActivity extends AppCompatActivity {
                 mSSIDs.add(result.SSID);
             }
         }
+
+        // TODO: Stub
+        mSSIDs.add("Yo dis is ma Wifi");
+        mSSIDs.add("New phone who dis?");
 
         // Handle "no available SSIDs"
         if (mSSIDs.isEmpty()) {
@@ -418,6 +413,7 @@ public final class MainActivity extends AppCompatActivity {
 
         mMatchView.setVisibility(View.VISIBLE);
         mMatchShadowView.setVisibility(View.VISIBLE);
+        mConnectProgressBar.setVisibility(View.GONE);
 
         if (SSID != null && password != null) {
             mMatchStatusTextView.setText("Network detected");
@@ -434,7 +430,7 @@ public final class MainActivity extends AppCompatActivity {
             mConnectButton.setOnClickListener(new View.OnClickListener() {
                 @Override
                 public void onClick(View v) {
-                    connectToNetwork(SSID, password);
+                    connectToNetwork();
                 }
             });
         } else {
@@ -538,15 +534,54 @@ public final class MainActivity extends AppCompatActivity {
                 }).show();
     }
 
-    private void connectToNetwork(String SSID, String password) {
+    private void connectToNetwork() {
+        String SSID = (String) mMatchSSIDSpinner.getSelectedItem();
+        String password = (String) mMatchPasswordSpinner.getSelectedItem();
+        if (SSID == null || password == null) {
+            Log.e(TAG, "Tried to connect to network with SSID: " + SSID + " Password: " + password);
+            return;
+        }
+
         WifiConfiguration wifiConfig = new WifiConfiguration();
         wifiConfig.SSID = String.format("\"%s\"", SSID);
         wifiConfig.preSharedKey = String.format("\"%s\"", password);
 
+        // Add a callback for when the connection changed
+        registerReceiver(new BroadcastReceiver() {
+            @Override
+            public void onReceive(Context context, Intent intent) {
+                // Call this only once
+                unregisterReceiver(this);
+                mConnectProgressBar.setVisibility(View.GONE);
+
+                if (isConnectedViaWifi()) {
+                    // A toast to this joyfull event!
+                    Toast.makeText(context, "Connected to Wifi", Toast.LENGTH_SHORT).show();
+                }
+
+                Log.e(TAG, "CONNECTION WORKED? " + isConnectedViaWifi());
+            }
+        }, new IntentFilter(android.net.ConnectivityManager.CONNECTIVITY_ACTION));
+
+        // Connect to the network
         int netId = mWifiManager.addNetwork(wifiConfig);
-        mWifiManager.disconnect();
         mWifiManager.enableNetwork(netId, true);
         mWifiManager.reconnect();
+        mConnectProgressBar.setVisibility(View.VISIBLE);
+    }
+
+    private boolean isConnectedViaWifi() {
+        // Checks if the phone is connected to a Wifi network. Agnostic of actual internet
+        // connection.
+        ConnectivityManager connectivityManager =
+                (ConnectivityManager) getSystemService(Context.CONNECTIVITY_SERVICE);
+
+        if (connectivityManager != null) {
+            NetworkInfo netInfo = connectivityManager.getNetworkInfo(ConnectivityManager.TYPE_WIFI);
+            return netInfo != null && netInfo.isConnected();
+        } else {
+            return false;
+        }
     }
 
     private void copyToClipboard() {
