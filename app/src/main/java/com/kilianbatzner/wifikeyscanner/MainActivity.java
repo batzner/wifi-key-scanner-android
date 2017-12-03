@@ -24,6 +24,8 @@ import android.annotation.TargetApi;
 import android.app.AlertDialog;
 import android.app.Dialog;
 import android.content.BroadcastReceiver;
+import android.content.ClipData;
+import android.content.ClipboardManager;
 import android.content.Context;
 import android.content.DialogInterface;
 import android.content.Intent;
@@ -291,6 +293,14 @@ public final class MainActivity extends AppCompatActivity {
         mTimeClockBar.setProgress(0);
 
         // Start a timeout for the recognition
+        startRecognitionTimeout();
+
+        mAllPasswords.clear();
+        mSSIDMatchCounts.clear();
+        mProcessor.setActive(true);
+    }
+
+    private void startRecognitionTimeout() {
         mRecognitionTimeoutAnimation = ValueAnimator.ofFloat(0, 1);
         mRecognitionTimeoutAnimation.setInterpolator(new LinearInterpolator());
         mRecognitionTimeoutAnimation.setDuration(10000);
@@ -307,7 +317,7 @@ public final class MainActivity extends AppCompatActivity {
         mRecognitionTimeoutAnimation.addListener(new AnimatorListenerAdapter() {
             @Override
             public void onAnimationEnd(Animator animation) {
-                onRecognitionTimeout();
+                displayResults(null, null);
             }
 
             @Override
@@ -318,10 +328,6 @@ public final class MainActivity extends AppCompatActivity {
         });
 
         mRecognitionTimeoutAnimation.start();
-
-        mAllPasswords.clear();
-        mSSIDMatchCounts.clear();
-        mProcessor.setActive(true);
     }
 
     private void stopRecognition() {
@@ -374,7 +380,14 @@ public final class MainActivity extends AppCompatActivity {
         mEditButton.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View v) {
-                editPassword(mMatchPasswordSpinner.getSelectedItemPosition());
+                editPassword();
+            }
+        });
+
+        mCopyButton.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View v) {
+                copyToClipboard();
             }
         });
     }
@@ -396,11 +409,7 @@ public final class MainActivity extends AppCompatActivity {
         }
     }
 
-    private void onRecognitionTimeout() {
-        displayResults(null, null);
-    }
-
-    private void editPassword(final int editPosition) {
+    private void editPassword() {
         ArrayAdapter<String> adapter = null;
         try {
             adapter = (ArrayAdapter<String>) mMatchPasswordSpinner.getAdapter();
@@ -408,12 +417,13 @@ public final class MainActivity extends AppCompatActivity {
             Log.e(TAG, "Could not cast password spinner adapter to String array adapter", e);
         }
 
-        if (adapter == null || editPosition >= adapter.getCount()) {
+        if (adapter == null) {
             return;
         }
 
         final ArrayAdapter<String> finalAdapter = adapter;
-        final String prefill = finalAdapter.getItem(editPosition);
+        final String prefill = (String) mMatchPasswordSpinner.getSelectedItem();
+        final int editPosition = mMatchPasswordSpinner.getSelectedItemPosition();
 
         new MaterialDialog.Builder(this)
                 .title("Edit Password")
@@ -437,6 +447,17 @@ public final class MainActivity extends AppCompatActivity {
         mWifiManager.disconnect();
         mWifiManager.enableNetwork(netId, true);
         mWifiManager.reconnect();
+    }
+
+    private void copyToClipboard() {
+        String label = "Password for " + mMatchSSIDSpinner.getSelectedItem();
+        String text = (String) mMatchPasswordSpinner.getSelectedItem();
+        ClipboardManager clipboard = (ClipboardManager) getSystemService(Context.CLIPBOARD_SERVICE);
+        ClipData clip = ClipData.newPlainText(label, text);
+        if (clipboard != null) {
+            clipboard.setPrimaryClip(clip);
+            Toast.makeText(this, "Copied password to clipboard", Toast.LENGTH_SHORT).show();
+        }
     }
 
     @Override
