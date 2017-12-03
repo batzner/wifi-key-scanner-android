@@ -3,10 +3,6 @@ package com.kilianbatzner.wifikeyscanner;
 import android.net.wifi.ScanResult;
 import android.net.wifi.WifiConfiguration;
 
-/**
- * Created by kilian on 03.12.17.
- */
-
 public class WifiUtils {
     public static final int SECURITY_NONE = 0;
     public static final int SECURITY_PSK = 1;

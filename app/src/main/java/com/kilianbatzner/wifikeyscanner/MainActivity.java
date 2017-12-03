@@ -1,18 +1,3 @@
-/*
- * Copyright (C) The Android Open Source Project
- *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
- *
- *      http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
- */
 package com.kilianbatzner.wifikeyscanner;
 
 import android.Manifest;
@@ -153,7 +138,7 @@ public final class MainActivity extends AppCompatActivity {
         mRescanButton.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View v) {
-                rescan(false);
+                rescan();
             }
         });
 
@@ -171,9 +156,9 @@ public final class MainActivity extends AppCompatActivity {
         checkPermissions();
     }
 
-    private void rescan(boolean forceForegroundSSIDScan) {
+    private void rescan() {
         // If we already have some SSIDs, do the scan in the background
-        if (mSSIDs.size() >= 3 && !forceForegroundSSIDScan) {
+        if (mSSIDs.size() >= 3) {
             scanSSIDsInBackground();
             startRecognition();
         } else {
@@ -198,8 +183,8 @@ public final class MainActivity extends AppCompatActivity {
     private void showPermissionsDialog() {
         AlertDialog.Builder builder = new AlertDialog.Builder(this);
 
-        builder.setTitle("Permission Needed")
-                .setMessage("To scan the Wifi key, please give this app access to the camera and the coarse location. The location is needed to scan for available networks.")
+        builder.setTitle(R.string.dialog_permission_needed_title)
+                .setMessage(R.string.dialog_permission_needed_message)
                 .setPositiveButton(android.R.string.ok, new DialogInterface.OnClickListener() {
                     public void onClick(DialogInterface dialog, int which) {
                         String[] permissions = new String[]{
@@ -209,7 +194,7 @@ public final class MainActivity extends AppCompatActivity {
                         requestPermissions(permissions, RC_HANDLE_LOCATION_PERM);
                     }
                 })
-                .setNegativeButton("Exit", new DialogInterface.OnClickListener() {
+                .setNegativeButton(R.string.close_app, new DialogInterface.OnClickListener() {
                     public void onClick(DialogInterface dialog, int which) {
                         finish();
                     }
@@ -222,9 +207,9 @@ public final class MainActivity extends AppCompatActivity {
         mWifiManager = (WifiManager) getApplicationContext().getSystemService(Context.WIFI_SERVICE);
         if (mWifiManager == null) {
             new MaterialDialog.Builder(this)
-                    .title("Wifi Error")
-                    .content("The app cannot use the internal Wifi manager. Please make sure that it has the permission to access the coarse location. If the problem persists, contact me at wifikeyscanner@kilians.net.")
-                    .neutralText("Close App")
+                    .title(R.string.dialog_wifi_error_title)
+                    .content(R.string.dialog_wifi_error_message)
+                    .neutralText(R.string.close_app)
                     .onAny(new MaterialDialog.SingleButtonCallback() {
                         @Override
                         public void onClick(@NonNull MaterialDialog dialog, @NonNull DialogAction which) {
@@ -292,7 +277,7 @@ public final class MainActivity extends AppCompatActivity {
         mScannerView.setAnimated(false);
 
         mStatusTextView.setVisibility(View.VISIBLE);
-        mStatusTextView.setText("Searching for Wifi networks");
+        mStatusTextView.setText(R.string.status_wifi_search);
         mStatusProgressBar.setVisibility(View.VISIBLE);
 
         scanSSIDsInBackground();
@@ -312,13 +297,13 @@ public final class MainActivity extends AppCompatActivity {
 
         // Handle "no available SSIDs"
         if (mSSIDs.isEmpty()) {
-            mStatusTextView.setText("No Networks found");
+            mStatusTextView.setText(R.string.status_no_networks_found);
             mStatusProgressBar.setVisibility(View.GONE);
             new MaterialDialog.Builder(this)
-                    .title("No Wifi Networks Found")
-                    .content("The phone's Wifi is enabled, but there are no available networks to connect to.")
-                    .negativeText("Search again")
-                    .positiveText("Scan anyways")
+                    .title(R.string.dialog_no_networks_found_title)
+                    .content(R.string.dialog_no_networks_found_message)
+                    .negativeText(R.string.dialog_no_networks_found_action_search)
+                    .positiveText(R.string.dialog_no_networks_found_action_scan)
                     .onNegative(new MaterialDialog.SingleButtonCallback() {
                         @Override
                         public void onClick(@NonNull MaterialDialog dialog, @NonNull DialogAction which) {
@@ -338,9 +323,10 @@ public final class MainActivity extends AppCompatActivity {
     }
 
     private void startRecognition() {
+
         // UI ready for scanning
         mStatusTextView.setVisibility(View.VISIBLE);
-        mStatusTextView.setText("Scan the Wifi name and password");
+        mStatusTextView.setText(R.string.status_scan_credentials);
         mStatusProgressBar.setVisibility(View.GONE);
         mRescanButton.setVisibility(View.GONE);
 
@@ -359,6 +345,9 @@ public final class MainActivity extends AppCompatActivity {
     }
 
     private void startRecognitionTimeout() {
+        // Cancel previous recognition timeouts
+        if (mRecognitionTimeoutAnimation != null) mRecognitionTimeoutAnimation.cancel();
+
         mRecognitionTimeoutAnimation = ValueAnimator.ofFloat(0, 1);
         mRecognitionTimeoutAnimation.setInterpolator(new LinearInterpolator());
         mRecognitionTimeoutAnimation.setDuration(10000);
@@ -418,14 +407,14 @@ public final class MainActivity extends AppCompatActivity {
         mMatchShadowView.animate().alpha(0);
 
         mMatchView.animate()
-                    .translationY(-mMatchView.getHeight())
-                    .setListener(new AnimatorListenerAdapter() {
-                        @Override
-                        public void onAnimationEnd(Animator animation) {
-                            super.onAnimationEnd(animation);
-                            mMatchView.setVisibility(View.INVISIBLE);
-                        }
-                    });
+                .translationY(-mMatchView.getHeight())
+                .setListener(new AnimatorListenerAdapter() {
+                    @Override
+                    public void onAnimationEnd(Animator animation) {
+                        super.onAnimationEnd(animation);
+                        mMatchView.setVisibility(View.INVISIBLE);
+                    }
+                });
     }
 
     private void displayResults(@Nullable final String SSID, @Nullable final String password) {
@@ -436,13 +425,13 @@ public final class MainActivity extends AppCompatActivity {
         if (mAllPasswords.isEmpty()) {
             // There is nothing to display or select. Show a dialog
             new MaterialDialog.Builder(this)
-                    .title("404 No Password found")
-                    .content("There was no password detected. Try scanning again.")
-                    .neutralText("Try again")
+                    .title(R.string.dialog_no_passwords_found_title)
+                    .content(R.string.dialog_no_passwords_found_message)
+                    .neutralText(R.string.try_again)
                     .onNeutral(new MaterialDialog.SingleButtonCallback() {
                         @Override
                         public void onClick(@NonNull MaterialDialog dialog, @NonNull DialogAction which) {
-                            rescan(false);
+                            rescan();
                         }
                     })
                     .show();
@@ -450,9 +439,9 @@ public final class MainActivity extends AppCompatActivity {
         }
 
         if (SSID != null && password != null) {
-            mMatchStatusTextView.setText("Network detected");
+            mMatchStatusTextView.setText(R.string.match_status_network_detected);
         } else {
-            mMatchStatusTextView.setText("No match found. Please select the network and the password below.");
+            mMatchStatusTextView.setText(R.string.match_status_nothing_found);
         }
 
         populateSSIDSpinner(SSID);
@@ -558,16 +547,17 @@ public final class MainActivity extends AppCompatActivity {
         final int editPosition = mMatchPasswordSpinner.getSelectedItemPosition();
 
         new MaterialDialog.Builder(this)
-                .title("Edit Password")
+                .title(R.string.dialog_edit_password_title)
                 .inputType(InputType.TYPE_CLASS_TEXT)
-                .input("Password", prefill, new MaterialDialog.InputCallback() {
-                    @Override
-                    public void onInput(@NonNull MaterialDialog dialog, CharSequence input) {
-                        // Update the spinner
-                        finalAdapter.remove(prefill);
-                        finalAdapter.insert(input.toString(), editPosition);
-                    }
-                }).show();
+                .input(getResources().getString(R.string.password), prefill,
+                        new MaterialDialog.InputCallback() {
+                            @Override
+                            public void onInput(@NonNull MaterialDialog dialog, CharSequence input) {
+                                // Update the spinner
+                                finalAdapter.remove(prefill);
+                                finalAdapter.insert(input.toString(), editPosition);
+                            }
+                        }).show();
     }
 
     private void connectToNetwork() {
@@ -586,6 +576,8 @@ public final class MainActivity extends AppCompatActivity {
         int netId = mWifiManager.addNetwork(wifiConfig);
         mWifiManager.enableNetwork(netId, true);
         mWifiManager.reconnect();
+
+        // TODO: Display a progress bar and check after three seconds if it worked
     }
 
     private boolean isConnectedViaWifi() {
@@ -603,13 +595,13 @@ public final class MainActivity extends AppCompatActivity {
     }
 
     private void copyToClipboard() {
-        String label = "Password for " + mMatchSSIDSpinner.getSelectedItem();
+        String label = getString(R.string.password_for, mMatchSSIDSpinner.getSelectedItem());
         String text = (String) mMatchPasswordSpinner.getSelectedItem();
         ClipboardManager clipboard = (ClipboardManager) getSystemService(Context.CLIPBOARD_SERVICE);
         ClipData clip = ClipData.newPlainText(label, text);
         if (clipboard != null) {
             clipboard.setPrimaryClip(clip);
-            Toast.makeText(this, "Copied password to clipboard", Toast.LENGTH_SHORT).show();
+            Toast.makeText(this, R.string.copied_password_to_clipboard, Toast.LENGTH_SHORT).show();
         }
     }
 
@@ -675,7 +667,7 @@ public final class MainActivity extends AppCompatActivity {
         // Handle item selection
         switch (item.getItemId()) {
             case R.id.menu_main_rescan:
-                rescan(false);
+                rescan();
                 return true;
             default:
                 return super.onOptionsItemSelected(item);

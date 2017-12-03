@@ -108,7 +108,7 @@
                 android:id="@+id/activity_main_match_status"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:text="Network detected"
+                android:text="@string/match_status_network_detected"
                 android:textSize="16sp"
                 android:textAlignment="center"/>
 
@@ -122,7 +122,7 @@
                 <TextView
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
-                    android:text="Network"
+                    android:text="@string/network"
                     android:textSize="18sp"
                     android:textStyle="bold" />
 
@@ -138,13 +138,13 @@
                     android:layout_height="wrap_content"
                     android:layout_marginTop="6dp"
                     android:textSize="16sp"
-                    android:text="No networks detected"/>
+                    android:text="@string/no_networks_detected"/>
 
                 <TextView
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
                     android:labelFor="@+id/activity_main_match_password"
-                    android:text="Password"
+                    android:text="@string/password"
                     android:textSize="18sp"
                     android:textStyle="bold"
                     android:layout_marginTop="12dp" />
@@ -161,7 +161,7 @@
                     android:layout_height="wrap_content"
                     android:layout_marginTop="6dp"
                     android:textSize="16sp"
-                    android:text="No passwords detected"/>
+                    android:text="@string/no_passwords_detected"/>
             </LinearLayout>
 
             <LinearLayout
@@ -180,7 +180,7 @@
                     android:layout_marginStart="12dp"
                     android:background="@null"
                     android:drawableTop="@drawable/ic_edit"
-                    android:text="Edit"
+                    android:text="@string/edit"
                     android:textColor="@color/colorAccent" />
 
                 <Button
@@ -190,7 +190,7 @@
                     android:layout_height="wrap_content"
                     android:background="@null"
                     android:drawableTop="@drawable/ic_copy"
-                    android:text="Copy"
+                    android:text="@android:string/copy"
                     android:textColor="@color/colorAccent" />
 
                 <Button
@@ -200,7 +200,7 @@
                     android:layout_height="wrap_content"
                     android:background="@null"
                     android:drawableTop="@drawable/ic_connect"
-                    android:text="Connect"
+                    android:text="@string/connect"
                     android:textColor="@color/colorAccent"/>
             </LinearLayout>
         </LinearLayout>

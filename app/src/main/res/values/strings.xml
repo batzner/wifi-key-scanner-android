@@ -1,15 +1,39 @@
 <resources>
     <string name="app_name">Wifi Key Scanner</string>
     <string name="ok">OK</string>
-    <string name="permission_camera_rationale">Access to the camera is needed for detection</string>
-    <string name="no_camera_permission">This application cannot run because it does not have the camera permission.  The application will now exit.</string>
-    <string name="low_storage_error">Ocr dependencies cannot be downloaded due to low device storage</string>
-    <string name="title_activity_main">Ocr Detector Sample</string>
-    <string name="ocr_header">Click &quot;Detect Text&quot; to detect text</string>
-    <string name="read_text">Detect Text</string>
-    <string name="auto_focus">Auto Focus</string>
-    <string name="use_flash">Use Flash</string>
-    <string name="ocr_success">Text read successfully</string>
-    <string name="ocr_failure">No text captured</string>
-    <string name="ocr_error">"Error reading text: %1$s"</string>
+
+    <string name="low_storage_error">Text Recognition dependencies cannot be downloaded due to low device storage.</string>
+
+    <string name="status_wifi_search">Searching for Wifi networks</string>
+    <string name="status_no_networks_found">No networks found</string>
+    <string name="status_scan_credentials">Scan the Wifi name and password</string>
+    <string name="match_status_network_detected">Network detected</string>
+    <string name="match_status_nothing_found">No match found. Please select the network and the password below.</string>
+    <string name="network">Network</string>
+    <string name="no_networks_detected">No networks detected</string>
+    <string name="password">Password</string>
+    <string name="no_passwords_detected">No passwords detected</string>
+    <string name="edit">Edit</string>
+    <string name="connect">Connect</string>
+    <string name="close_app">Close App</string>
+    <string name="try_again">Try again</string>
+
+    <string name="dialog_permission_needed_title">Permission Needed</string>
+    <string name="dialog_permission_needed_message">To scan the Wifi key, please give this app access to the camera and the coarse location. The location is needed to scan for available networks.</string>
+
+    <string name="dialog_wifi_error_title">Wifi Error</string>
+    <string name="dialog_wifi_error_message">The app cannot use the internal Wifi manager. Please make sure that it has the permission to access the coarse location. If the problem persists, contact me at wifikeyscanner@kilians.net.</string>
+
+    <string name="dialog_no_networks_found_title">No Network found</string>
+    <string name="dialog_no_networks_found_message">The phone\'s Wifi is enabled, but there are no available networks to connect to.</string>
+    <string name="dialog_no_networks_found_action_search">Search again</string>
+    <string name="dialog_no_networks_found_action_scan">Scan anyway</string>
+
+    <string name="dialog_no_passwords_found_title">No Password found</string>
+    <string name="dialog_no_passwords_found_message">The text recognition could not detect a password. Try scanning again.</string>
+
+    <string name="dialog_edit_password_title">Edit Password</string>
+
+    <string name="password_for">Password for %1$s</string>
+    <string name="copied_password_to_clipboard">Copied password to clipboard</string>
 </resources>
