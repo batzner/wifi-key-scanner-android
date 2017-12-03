@@ -53,6 +53,10 @@ public class OcrDetectorProcessor implements Detector.Processor<TextBlock> {
         mIsActive = isActive;
     }
 
+    public boolean isActive() {
+        return mIsActive;
+    }
+
     @Override
     public void receiveDetections(Detector.Detections<TextBlock> detections) {
         if (!mIsActive) return;

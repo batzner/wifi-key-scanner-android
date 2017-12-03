@@ -46,7 +46,9 @@ import android.support.v4.app.ActivityCompat;
 import android.support.v7.app.AppCompatActivity;
 import android.text.InputType;
 import android.util.Log;
-import android.view.LayoutInflater;
+import android.view.Menu;
+import android.view.MenuInflater;
+import android.view.MenuItem;
 import android.view.MotionEvent;
 import android.view.ScaleGestureDetector;
 import android.view.View;
@@ -116,6 +118,7 @@ public final class MainActivity extends AppCompatActivity {
     ValueAnimator mRecognitionTimeoutAnimation;
 
     private WifiManager mWifiManager;
+    private boolean mActiveSSIDScan;
     private OcrDetectorProcessor mProcessor;
     private Set<String> mSSIDs = new HashSet<>();
     private Set<String> mAllPasswords = new HashSet<>();
@@ -150,7 +153,7 @@ public final class MainActivity extends AppCompatActivity {
         mRescanButton.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View v) {
-                startSSIDScan();
+                rescan(false);
             }
         });
 
@@ -160,6 +163,16 @@ public final class MainActivity extends AppCompatActivity {
         mScaleGestureDetector = new ScaleGestureDetector(this, new ScaleListener());
 
         checkPermissions();
+    }
+
+    private void rescan(boolean forceForegroundSSIDScan) {
+        // If we already have some SSIDs, do the scan in the background
+        if (mSSIDs.size() >= 3 && !forceForegroundSSIDScan) {
+            scanSSIDsInBackground();
+            startRecognition();
+        } else {
+            scanSSIDs();
+        }
     }
 
     private void checkPermissions() {
@@ -206,16 +219,54 @@ public final class MainActivity extends AppCompatActivity {
             return;
         }
 
-        startSSIDScan();
+        scanSSIDs();
 
         // Set good defaults for capturing text.
         createCameraSource(true, false);
     }
 
-    private void startSSIDScan() {
-        // TODO: Call that from a refresh action bar button
+    private void scanSSIDsInBackground() {
+        if (mActiveSSIDScan) return;
 
-        // TODO: If we already have some SSIDs, do the scan in the background
+        // Make sure Wifi is enabled
+        if (!mWifiManager.isWifiEnabled()) {
+            // Register the connection change receiver and activate wifi
+            registerReceiver(new BroadcastReceiver() {
+                @Override
+                public void onReceive(Context c, Intent intent) {
+                    // Call this only once
+                    unregisterReceiver(this);
+
+                    SupplicantState supplicantState = intent.getParcelableExtra(WifiManager.EXTRA_NEW_STATE);
+                    if (supplicantState == (SupplicantState.COMPLETED)) {
+                        // Wifi is enabled
+                        scanSSIDsInBackground();
+                    }
+                }
+            }, new IntentFilter(WifiManager.SUPPLICANT_CONNECTION_CHANGE_ACTION));
+
+            mWifiManager.setWifiEnabled(true);
+        } else {
+            // Register handler for the scan completion
+            registerReceiver(new BroadcastReceiver() {
+                @Override
+                public void onReceive(Context context, Intent intent) {
+                    // Call this only once
+                    unregisterReceiver(this);
+                    mActiveSSIDScan = false;
+                    onSSIDScanComplete();
+                }
+            }, new IntentFilter(WifiManager.SCAN_RESULTS_AVAILABLE_ACTION));
+
+            // Start the scan
+            mActiveSSIDScan = true;
+            mWifiManager.startScan();
+        }
+    }
+
+    private void scanSSIDs() {
+        // This runs in the foreground, so cancel the recognition
+        if (mRecognitionTimeoutAnimation != null) mRecognitionTimeoutAnimation.cancel();
 
         // UI Updates
         mMatchView.setVisibility(View.GONE);
@@ -228,37 +279,7 @@ public final class MainActivity extends AppCompatActivity {
         mStatusTextView.setText("Searching for Wifi networks");
         mStatusProgressBar.setVisibility(View.VISIBLE);
 
-        if (!mWifiManager.isWifiEnabled()) {
-            // Register the connection change receiver and activate wifi
-            registerReceiver(new BroadcastReceiver() {
-                @Override
-                public void onReceive(Context c, Intent intent) {
-                    // Call this only once
-                    unregisterReceiver(this);
-
-                    SupplicantState supplicantState = intent.getParcelableExtra(WifiManager.EXTRA_NEW_STATE);
-                    if (supplicantState == (SupplicantState.COMPLETED)) {
-                        // Wifi is enabled
-                        mWifiManager.startScan();
-                    }
-                }
-            }, new IntentFilter(WifiManager.SUPPLICANT_CONNECTION_CHANGE_ACTION));
-
-            mWifiManager.setWifiEnabled(true);
-        }
-
-        // Register handler for the scan completion and start the scan
-        registerReceiver(new BroadcastReceiver() {
-            @Override
-            public void onReceive(Context c, Intent intent) {
-                // Call this only once
-                unregisterReceiver(this);
-
-                onSSIDScanComplete(mWifiManager.getScanResults());
-            }
-        }, new IntentFilter(WifiManager.SCAN_RESULTS_AVAILABLE_ACTION));
-
-        mWifiManager.startScan();
+        scanSSIDsInBackground();
     }
 
     private boolean isConnectedViaWifi() {
@@ -272,7 +293,9 @@ public final class MainActivity extends AppCompatActivity {
         }
     }
 
-    private void onSSIDScanComplete(List<ScanResult> scanResults) {
+    private void onSSIDScanComplete() {
+        List<ScanResult> scanResults = mWifiManager.getScanResults();
+
         // Update the SSIDs
         mSSIDs.clear();
         for (ScanResult result : scanResults) {
@@ -294,7 +317,7 @@ public final class MainActivity extends AppCompatActivity {
                     .onNegative(new MaterialDialog.SingleButtonCallback() {
                         @Override
                         public void onClick(@NonNull MaterialDialog dialog, @NonNull DialogAction which) {
-                            startSSIDScan();
+                            scanSSIDs();
                         }
                     })
                     .onPositive(new MaterialDialog.SingleButtonCallback() {
@@ -305,7 +328,7 @@ public final class MainActivity extends AppCompatActivity {
                     })
                     .show();
         } else {
-            startRecognition();
+            if (!mProcessor.isActive()) startRecognition();
         }
     }
 
@@ -386,7 +409,7 @@ public final class MainActivity extends AppCompatActivity {
                     .onNeutral(new MaterialDialog.SingleButtonCallback() {
                         @Override
                         public void onClick(@NonNull MaterialDialog dialog, @NonNull DialogAction which) {
-                            startSSIDScan();
+                            rescan(false);
                         }
                     })
                     .show();
@@ -585,6 +608,25 @@ public final class MainActivity extends AppCompatActivity {
                         .setFlashMode(useFlash ? Camera.Parameters.FLASH_MODE_TORCH : null)
                         .setFocusMode(autoFocus ? Camera.Parameters.FOCUS_MODE_CONTINUOUS_PICTURE : null)
                         .build();
+    }
+
+    @Override
+    public boolean onCreateOptionsMenu(Menu menu) {
+        MenuInflater inflater = getMenuInflater();
+        inflater.inflate(R.menu.main, menu);
+        return true;
+    }
+
+    @Override
+    public boolean onOptionsItemSelected(MenuItem item) {
+        // Handle item selection
+        switch (item.getItemId()) {
+            case R.id.menu_main_rescan:
+                rescan(false);
+                return true;
+            default:
+                return super.onOptionsItemSelected(item);
+        }
     }
 
     /**

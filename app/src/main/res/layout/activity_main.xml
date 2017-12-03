@@ -80,7 +80,7 @@
             android:layout_height="wrap_content"
             android:layout_gravity="center"
             android:background="@null"
-            android:drawableTop="@drawable/ic_refresh"
+            android:drawableTop="@drawable/ic_rescan"
             android:text="Rescan"
             android:textColor="@color/colorAccent" />
     </android.support.v7.widget.CardView>
