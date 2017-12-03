@@ -157,6 +157,10 @@ public final class MainActivity extends AppCompatActivity {
             }
         });
 
+        // Initial UI:
+        mMatchView.setVisibility(View.INVISIBLE);
+        mMatchShadowView.setAlpha(0);
+
         mProcessor = new OcrDetectorProcessor(mSSIDs, new ProcessorListener());
         mProcessor.setActive(false);
 
@@ -269,8 +273,7 @@ public final class MainActivity extends AppCompatActivity {
         if (mRecognitionTimeoutAnimation != null) mRecognitionTimeoutAnimation.cancel();
 
         // UI Updates
-        mMatchView.setVisibility(View.GONE);
-        mMatchShadowView.setVisibility(View.GONE);
+        hideMatchView();
         mRescanButton.setVisibility(View.GONE);
         mTimeClockBar.setVisibility(View.GONE);
         mScannerView.setAnimated(false);
@@ -333,8 +336,7 @@ public final class MainActivity extends AppCompatActivity {
         mRescanButton.setVisibility(View.GONE);
 
         mScannerView.setAnimated(true);
-        mMatchView.setVisibility(View.GONE);
-        mMatchShadowView.setVisibility(View.GONE);
+        hideMatchView();
 
         mTimeClockBar.setVisibility(View.VISIBLE);
         mTimeClockBar.setProgress(0);
@@ -388,6 +390,35 @@ public final class MainActivity extends AppCompatActivity {
         mTimeClockBar.setVisibility(View.GONE);
     }
 
+    private void showMatchView() {
+        // Animate the appearance of the match view
+        mMatchShadowView.animate().alpha(1);
+
+        // Only show if it is not already visible
+        if (mMatchView.getVisibility() != View.VISIBLE) {
+            mMatchView.setVisibility(View.INVISIBLE);
+            mMatchView.setTranslationY(-mMatchView.getHeight());
+            mMatchView.setVisibility(View.VISIBLE);
+            // Clear the listener from the hiding animation
+            mMatchView.animate().translationY(0).setListener(null);
+        }
+    }
+
+    private void hideMatchView() {
+        // Animate the disappearance of the match view
+        mMatchShadowView.animate().alpha(0);
+
+        mMatchView.animate()
+                    .translationY(-mMatchView.getHeight())
+                    .setListener(new AnimatorListenerAdapter() {
+                        @Override
+                        public void onAnimationEnd(Animator animation) {
+                            super.onAnimationEnd(animation);
+                            mMatchView.setVisibility(View.INVISIBLE);
+                        }
+                    });
+    }
+
     private void displayResults(@Nullable final String SSID, @Nullable final String password) {
         // Stop the recognition timeout
         mRecognitionTimeoutAnimation.cancel();
@@ -408,9 +439,6 @@ public final class MainActivity extends AppCompatActivity {
                     .show();
             return;
         }
-
-        mMatchView.setVisibility(View.VISIBLE);
-        mMatchShadowView.setVisibility(View.VISIBLE);
 
         if (SSID != null && password != null) {
             mMatchStatusTextView.setText("Network detected");
@@ -447,6 +475,8 @@ public final class MainActivity extends AppCompatActivity {
                 copyToClipboard();
             }
         });
+
+        showMatchView();
     }
 
     private void populateSSIDSpinner(@Nullable String matchedSSID) {
