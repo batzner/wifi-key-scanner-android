@@ -89,10 +89,6 @@ public class OcrDetectorProcessor implements Detector.Processor<TextBlock> {
             }
         }
 
-        // TODO: Stub
-        passwords.add("adfuo123");
-        passwords.add("12o4tuh9z91t2");
-
         if (mListener != null) mListener.onDetectionsProcessed(passwords, matchedSSIDs);
     }
 

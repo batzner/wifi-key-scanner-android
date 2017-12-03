@@ -160,6 +160,8 @@ public final class MainActivity extends AppCompatActivity {
         // Initial UI:
         mMatchView.setVisibility(View.INVISIBLE);
         mMatchShadowView.setAlpha(0);
+        mTimeClockBar.setVisibility(View.GONE);
+        mRescanButton.setVisibility(View.GONE);
 
         mProcessor = new OcrDetectorProcessor(mSSIDs, new ProcessorListener());
         mProcessor.setActive(false);
@@ -219,7 +221,18 @@ public final class MainActivity extends AppCompatActivity {
         // From https://stackoverflow.com/a/7527380/2628369
         mWifiManager = (WifiManager) getApplicationContext().getSystemService(Context.WIFI_SERVICE);
         if (mWifiManager == null) {
-            // TODO: Exit
+            new MaterialDialog.Builder(this)
+                    .title("Wifi Error")
+                    .content("The app cannot use the internal Wifi manager. Please make sure that it has the permission to access the coarse location. If the problem persists, contact me at wifikeyscanner@kilians.net.")
+                    .neutralText("Close App")
+                    .onAny(new MaterialDialog.SingleButtonCallback() {
+                        @Override
+                        public void onClick(@NonNull MaterialDialog dialog, @NonNull DialogAction which) {
+                            finish();
+                        }
+                    })
+                    .canceledOnTouchOutside(false)
+                    .show();
             return;
         }
 
@@ -296,10 +309,6 @@ public final class MainActivity extends AppCompatActivity {
                 mSSIDs.add(result.SSID);
             }
         }
-
-        // TODO: Stub
-        mSSIDs.add("Yo dis is ma Wifi");
-        mSSIDs.add("New phone who dis?");
 
         // Handle "no available SSIDs"
         if (mSSIDs.isEmpty()) {
