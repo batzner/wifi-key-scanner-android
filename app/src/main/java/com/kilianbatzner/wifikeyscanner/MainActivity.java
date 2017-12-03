@@ -42,6 +42,7 @@ import android.support.annotation.NonNull;
 import android.support.annotation.Nullable;
 import android.support.v4.app.ActivityCompat;
 import android.support.v7.app.AppCompatActivity;
+import android.text.InputType;
 import android.util.Log;
 import android.view.LayoutInflater;
 import android.view.MotionEvent;
@@ -373,7 +374,7 @@ public final class MainActivity extends AppCompatActivity {
         mEditButton.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View v) {
-                editMatch(SSID, password);
+                editPassword(mMatchPasswordSpinner.getSelectedItemPosition());
             }
         });
     }
@@ -399,14 +400,32 @@ public final class MainActivity extends AppCompatActivity {
         displayResults(null, null);
     }
 
-    private void editMatch(final String SSID, final String password) {
-        LayoutInflater inflater = getLayoutInflater();
-        View rootView = inflater.inflate(R.layout.dialog_edit_match, null);
+    private void editPassword(final int editPosition) {
+        ArrayAdapter<String> adapter = null;
+        try {
+            adapter = (ArrayAdapter<String>) mMatchPasswordSpinner.getAdapter();
+        } catch (ClassCastException e) {
+            Log.e(TAG, "Could not cast password spinner adapter to String array adapter", e);
+        }
 
-        // TODO:
-        AlertDialog.Builder builder = new AlertDialog.Builder(this);
-        builder.setView(rootView);
-        builder.show();
+        if (adapter == null || editPosition >= adapter.getCount()) {
+            return;
+        }
+
+        final ArrayAdapter<String> finalAdapter = adapter;
+        final String prefill = finalAdapter.getItem(editPosition);
+
+        new MaterialDialog.Builder(this)
+                .title("Edit Password")
+                .inputType(InputType.TYPE_CLASS_TEXT)
+                .input("Password", prefill, new MaterialDialog.InputCallback() {
+                    @Override
+                    public void onInput(@NonNull MaterialDialog dialog, CharSequence input) {
+                        // Update the spinner
+                        finalAdapter.remove(prefill);
+                        finalAdapter.insert(input.toString(), editPosition);
+                    }
+                }).show();
     }
 
     private void connectToNetwork(String SSID, String password) {
@@ -695,8 +714,8 @@ public final class MainActivity extends AppCompatActivity {
 
             int result = -Integer.valueOf(count1).compareTo(count2);
             if (result == 0) {
-                // Secondary order: length, descending
-                result = -Integer.valueOf(str1.length()).compareTo(str2.length());
+                // Secondary order: lexicographical, ascending
+                result = str1.compareTo(str2);
             }
             return result;
         }
