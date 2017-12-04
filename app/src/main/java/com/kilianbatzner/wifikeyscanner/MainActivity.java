@@ -185,7 +185,7 @@ public final class MainActivity extends AppCompatActivity {
 
         builder.setTitle(R.string.dialog_permission_needed_title)
                 .setMessage(R.string.dialog_permission_needed_message)
-                .setPositiveButton(android.R.string.ok, new DialogInterface.OnClickListener() {
+                .setPositiveButton(R.string.ok, new DialogInterface.OnClickListener() {
                     public void onClick(DialogInterface dialog, int which) {
                         String[] permissions = new String[]{
                                 Manifest.permission.ACCESS_COARSE_LOCATION,

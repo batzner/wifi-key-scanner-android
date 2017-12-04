@@ -1,0 +1,17 @@
+# TITLE
+
+Wifi Key Scanner - Connect to WLAN by Camera
+
+# SHORT DESCRIPTION
+
+Tired of typing long passwords to connect to the Wifi? 
+
+# LONG DESCRIPTION
+
+A few days ago I had to type eJ8k2p90Nnd3jrT8Jm as a password to connect to a WiFi - that was annoying.
+
+So I wrote a small but helpful app to scan Wifi passwords, for example written on the back of a router or on a piece of paper. The app does not store any Wifi names or passwords. It simply scans the camera input for text and displays the found passwords to the user.
+
+You can copy the detected password to your clipboard or directly connect to the Wifi via the app. 
+
+I hope you enjoy this app.

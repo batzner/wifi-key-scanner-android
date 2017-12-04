@@ -14,6 +14,7 @@
     <string name="password">Password</string>
     <string name="no_passwords_detected">No passwords detected</string>
     <string name="edit">Edit</string>
+    <string name="copy">Copy</string>
     <string name="connect">Connect</string>
     <string name="close_app">Close App</string>
     <string name="try_again">Try again</string>
